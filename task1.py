@@ -29,6 +29,9 @@ Note: Some pedestrians do not have a future x and y coordinate, so you need to f
 still use their current and previous location when predicting the future location of other pedestrians.
 
 """
+
+# obtain the dataset
+
 nodes_cols = [
         "node id",
         "current x", "current y",
@@ -59,8 +62,20 @@ def build_dataframe(filename, cols):
     # concatenate them into one big DataFrame
     res = pd.concat(dfs, ignore_index=True)
 
-    print(res)
+    # print(res)
     return res
 
 nodes = build_dataframe("nodes", nodes_cols)
 edges = build_dataframe("edges", edges_cols)
+
+# split the dataset
+
+# Obtain random indices
+random_indices = np.random.permutation(range(nodes.shape[0]))
+
+# 50/50 split
+train_data = nodes.iloc[random_indices[: len(random_indices) // 2]]
+test_data = nodes.iloc[random_indices[len(random_indices) // 2 :]]
+
+# print(train_data)
+# print(test_data)
