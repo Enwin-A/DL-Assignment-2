@@ -1,0 +1,14 @@
+Epoch 010 | Train Loss: 0.8263
+Epoch 020 | Train Loss: 0.8181
+Epoch 030 | Train Loss: 0.8108
+Epoch 040 | Train Loss: 0.8099
+Epoch 050 | Train Loss: 0.8143
+Epoch 060 | Train Loss: 0.8048
+Epoch 070 | Train Loss: 0.8170
+Epoch 080 | Train Loss: 0.8157
+Epoch 090 | Train Loss: 0.8193
+Epoch 100 | Train Loss: 0.8132
+Test MAE: 10617.3656 mm,  RMSE: 14501.9908 mm
+Median / 90th pct: 6919.7853, 26655.8850 mm
+Fraction within 1 m: 1.14%
+Best model saved to gat_regressor.pth
