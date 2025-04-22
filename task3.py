@@ -232,8 +232,8 @@ if __name__ == '__main__':
 
     # eval
     mae, rmse, m50, m90 = evaluate(model, test_loader, train_ds.disp_mean, train_ds.disp_std)
-    print(f"Test MAE: {mae:.4f} m, RMSE: {rmse:.4f} m")
-    print(f"Median / 90th pct: {m50:.4f}, {m90:.4f} m")
+    print(f"Test MAE: {mae:.4f} mm, RMSE: {rmse:.4f} mm")
+    print(f"Median / 90th pct: {m50:.4f}, {m90:.4f} mm")
     # save
     torch.save(model.state_dict(), 'task3_cosine_model.pth')
     print("Model saved to task3_cosine_model.pth")

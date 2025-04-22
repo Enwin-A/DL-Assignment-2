@@ -180,15 +180,15 @@ def evaluate(model, loader, targ_mean, targ_std):
     mae = errs.mean()
     rmse = np.sqrt((errs**2).mean())
     pct50, pct90 = np.percentile(errs, [50, 90])
-    within_1m = (errs < 1.0).mean()
-    return mae, rmse, pct50, pct90, within_1m
+    within_1m_mm = np.mean(errs < 1000.0)   # ← 1000 mm
+    return mae, rmse, pct50, pct90, within_1m_mm
 
 # ------------------------
 # Main
 # ------------------------
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_path', type=str, default='dataset/dataset')
+    parser.add_argument('--data_path', type=str, default='dataset')
     parser.add_argument('--hidden_dim', type=int, default=64)
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--epochs', type=int, default=100)
@@ -231,7 +231,7 @@ if __name__ == '__main__':
             torch.save(model.state_dict(), args.save_model)
 
     mae, rmse, p50, p90, w1 = evaluate(model, test_loader, train_ds.targ_mean, train_ds.targ_std)
-    print(f"Test MAE: {mae:.4f} m, RMSE: {rmse:.4f} m")
-    print(f"Median / 90th pct: {p50:.4f}, {p90:.4f} m")
-    print(f"Fraction within 1m: {w1:.2%}")
+    print(f"Test MAE: {mae:.4f} mm,  RMSE: {rmse:.4f} mm")
+    print(f"Median / 90th pct: {p50:.4f}, {p90:.4f} mm")
+    print(f"Fraction within 1 m: {w1:.2%}")
     print(f"Best model saved to {args.save_model}")
