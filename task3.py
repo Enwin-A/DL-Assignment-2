@@ -10,9 +10,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 
-# ------------------------
-# Utility: set random seeds
-# ------------------------
+# utility: seting random seeds
 def set_seed(seed: int = 42):
     random.seed(seed)
     np.random.seed(seed)
@@ -20,9 +18,7 @@ def set_seed(seed: int = 42):
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
-# ------------------------
-# Data loading & preprocessing (with self-loops)
-# ------------------------
+# data loading & preprocessing (with self-loops)
 def load_scene(base_path, scene_id):
     nodes = pd.read_csv(
         os.path.join(base_path, f"{scene_id}.nodes"), header=None,
@@ -38,7 +34,7 @@ def load_scene(base_path, scene_id):
         os.path.join(base_path, f"{scene_id}.edges"), header=None,
         names=['target','source']
     ).astype(int) - 1
-    # undirected
+    # undirected edges (self-loops included)
     edges_rev = edges.rename(columns={'target':'source','source':'target'})
     edges = pd.concat([edges, edges_rev], ignore_index=True)
     return nodes, edges, valid
@@ -68,10 +64,10 @@ class SceneDataset(Dataset):
             self.feat_std  = feat_std
             self.disp_mean = disp_mean
             self.disp_std  = disp_std
-        # to tensors
+        # to run with the GPU
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         for s in self.scenes:
-            # normalize
+            # normalizing features and targets
             s['features'] = torch.tensor((s['feats'] - self.feat_mean)/self.feat_std,
                                          dtype=torch.float32, device=device)
             s['disp_norm'] = torch.tensor((s['disp'] - self.disp_mean)/self.disp_std,
@@ -79,7 +75,7 @@ class SceneDataset(Dataset):
             s['mask'] = torch.tensor(s['mask'], dtype=torch.bool, device=device)
             s['curr_xy'] = torch.tensor(s['curr'], dtype=torch.float32, device=device)
             s['fut_xy']  = torch.tensor(s['fut'], dtype=torch.float32, device=device)
-            # build sparse adjacency with self-loops
+            # build sparse adjacency matrix with self-loops
             src = s['edges']['source'].values.astype(np.int64)
             tgt = s['edges']['target'].values.astype(np.int64)
             N = s['features'].size(0)
@@ -95,9 +91,7 @@ class SceneDataset(Dataset):
 
 def collate_fn(batch): return batch[0]
 
-# ------------------------
-# Cosine-Based Attention
-# ------------------------
+# cosine-based attention
 class CosineAttention(nn.Module):
     def __init__(self, in_dim, out_dim, eps=1e-8):
         super().__init__()
@@ -106,15 +100,15 @@ class CosineAttention(nn.Module):
         self.eps = eps
 
     def forward(self, h, adj):
-        Wh = self.W(h)                # (N, out_dim)
+        Wh = self.W(h)                
         N = Wh.size(0)
-        norms = Wh.norm(p=2, dim=1, keepdim=True)            # (N,1)
-        sim = (Wh @ Wh.t()) / (norms * norms.t() + self.eps)  # (N,N)
-        # build mask, include self-loops to avoid isolated rows
+        norms = Wh.norm(p=2, dim=1, keepdim=True)           
+        sim = (Wh @ Wh.t()) / (norms * norms.t() + self.eps)  
+        # build mask, including self-loops to avoid isolated rows
         dense_adj = adj.to_dense()
         mask = dense_adj > 0
         mask = mask | torch.eye(N, device=mask.device, dtype=torch.bool)
-        # mask similarity
+        # mask similarity matrix
         sim_masked = torch.where(mask, sim, torch.full_like(sim, float('-inf')))
         alpha = F.softmax(sim_masked, dim=1)
         return alpha @ Wh
@@ -129,9 +123,7 @@ class MultiHeadCosine(nn.Module):
         out = [head(h, adj) for head in self.heads]
         return torch.stack(out, dim=0).mean(dim=0)
 
-# ------------------------
-# GAT Regressor with Cosine Attention
-# ------------------------
+# gat regressor with cosine attention
 class GATCosineRegressor(nn.Module):
     def __init__(self, feature_dim, hidden_dim, num_heads, deeper_embed=False):
         super().__init__()
@@ -154,9 +146,7 @@ class GATCosineRegressor(nn.Module):
         x = self.dropout(x)
         return self.attn2(x, adj)
 
-# ------------------------
-# Training & Evaluation
-# ------------------------
+# training & evaluation
 def train_epoch(model, loader, opt, crit):
     model.train()
     total = 0.0
@@ -186,12 +176,10 @@ def evaluate(model, loader, disp_mean, disp_std):
     errs = np.concatenate(all_errs)
     return errs.mean(), np.sqrt((errs**2).mean()), *np.percentile(errs, [50, 90])
 
-# ------------------------
-# Main
-# ------------------------
+# main
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_path',    type=str,   default='dataset/dataset')
+    parser.add_argument('--data_path',    type=str,   default='dataset')
     parser.add_argument('--hidden_dim',   type=int,   default=64)
     parser.add_argument('--num_heads',    type=int,   default=2)
     parser.add_argument('--deeper_embed', action='store_true')
@@ -204,7 +192,7 @@ if __name__ == '__main__':
     global device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # load scenes
+    # loading the scenes
     files = [f for f in os.listdir(args.data_path) if f.endswith('.nodes')]
     scene_ids = [os.path.splitext(f)[0] for f in files]
     train_ids, test_ids = train_test_split(scene_ids, test_size=0.2, random_state=args.seed)
@@ -219,7 +207,7 @@ if __name__ == '__main__':
     train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, collate_fn=collate_fn)
     test_loader  = DataLoader(test_ds,  batch_size=1, shuffle=False, collate_fn=collate_fn)
 
-    # model, optimizer, loss
+    # model, optimizer and loss function
     model = GATCosineRegressor(4, args.hidden_dim, args.num_heads, args.deeper_embed).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     criterion = nn.MSELoss()

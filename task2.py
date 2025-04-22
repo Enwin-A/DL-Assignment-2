@@ -11,9 +11,7 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 
-# ------------------------
-# Utility: set random seeds
-# ------------------------
+# utility: set random seeds
 def set_seed(seed: int = 42):
     random.seed(seed)
     np.random.seed(seed)
@@ -21,9 +19,7 @@ def set_seed(seed: int = 42):
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
-# ------------------------
-# Data loading & preprocessing
-# ------------------------
+# data loading & preprocessing
 def load_scene(base_path, scene_id):
     nodes_path = os.path.join(base_path, f"{scene_id}.nodes")
     edges_path = os.path.join(base_path, f"{scene_id}.edges")
@@ -59,7 +55,7 @@ class SceneDataset(Dataset):
             disp = np.nan_to_num(fut - curr)
             self.scenes.append({'feats':feats,'disp':disp,'mask':mask,'edges':edges,'curr':curr,'fut':fut})
 
-        # compute normalization statistics
+        # computing normalization statistics
         if mode == 'train':
             all_feats = np.vstack([s['feats'] for s in self.scenes])
             all_disp  = np.vstack([s['disp'][s['mask']] for s in self.scenes])
@@ -94,9 +90,7 @@ class SceneDataset(Dataset):
 
 def collate_fn(batch): return batch[0]
 
-# ------------------------
-# Graph Attention & Multi-Head
-# ------------------------
+# graph attention & multi-head
 class GraphAttention(nn.Module):
     def __init__(self, in_dim, out_dim):
         super().__init__()
@@ -125,9 +119,7 @@ class MultiHeadAttention(nn.Module):
         out = [head(h, adj) for head in self.heads]
         return torch.stack(out, dim=0).mean(dim=0)
 
-# ------------------------
-# GAT Regressor
-# ------------------------
+# gat regressor
 class GATRegressor(nn.Module):
     def __init__(self, feature_dim, hidden_dim, num_heads, deeper_embed=False):
         super().__init__()
@@ -151,9 +143,7 @@ class GATRegressor(nn.Module):
         x = self.dropout(x)
         return self.gat2(x, adj)
 
-# ------------------------
-# Train & Eval
-# ------------------------
+# train & eval
 def train_epoch(model, loader, opt, crit):
     model.train()
     total = 0
@@ -183,12 +173,10 @@ def evaluate(model, loader, disp_mean, disp_std):
     arr = np.concatenate(errs)
     return arr.mean(), np.sqrt((arr**2).mean()), *np.percentile(arr,[50,90])
 
-# ------------------------
-# Main
-# ------------------------
+# main
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_path',    type=str,   default='dataset/dataset')
+    parser.add_argument('--data_path',    type=str,   default='dataset')
     parser.add_argument('--hidden_dim',   type=int,   default=64)
     parser.add_argument('--lr',           type=float, default=1e-3)
     parser.add_argument('--epochs',       type=int,   default=100)
@@ -244,16 +232,14 @@ if __name__ == '__main__':
         })
         print(f"Heads={num_heads}, embed={deeper} -> MAE={mae:.4f}, RMSE={rmse:.4f}")
 
-    # save results CSV
+    # saving results CSV
     df = pd.DataFrame(results)
     csv_path = 'grid_search_results.csv'
     df.to_csv(csv_path, index=False)
     print(f"Results saved to {csv_path}")
 
-    # --------------
-    # Plot & save charts
-    # --------------
-    # Pivot and plot for MAE and RMSE
+    # plotting & save charts
+    # pivot and plot for MAE and RMSE
     for metric in ['MAE', 'RMSE']:
         pivot = df.pivot(index='num_heads', columns='deeper_embed', values=metric)
         ax = pivot.plot(kind='bar')
@@ -266,7 +252,7 @@ if __name__ == '__main__':
         print(f"Saved plot to {fig_path}")
         plt.clf()
 
-    # Optionally, plot median and 90th percentile too
+    # ploting the median and 90th percentile too
     for metric in ['Median', '90th_pct']:
         pivot = df.pivot(index='num_heads', columns='deeper_embed', values=metric)
         ax = pivot.plot(kind='bar')

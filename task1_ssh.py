@@ -10,9 +10,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 
-# ------------------------
-# Utility: set random seeds
-# ------------------------
+# utility: set random seeds
 def set_seed(seed: int = 42):
     random.seed(seed)
     np.random.seed(seed)
@@ -20,9 +18,7 @@ def set_seed(seed: int = 42):
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
-# ------------------------
-# Data loading & preprocessing
-# ------------------------
+# data loading & preprocessing
 def load_scene(base_path, scene_id):
     nodes_path = os.path.join(base_path, f"{scene_id}.nodes")
     edges_path = os.path.join(base_path, f"{scene_id}.edges")
@@ -80,17 +76,17 @@ class SceneDataset(Dataset):
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         for s in self.scenes:
-            # normalize features
+            # normalizing features
             f = (s['feats'] - self.feat_mean) / self.feat_std
             s['features'] = torch.tensor(f, dtype=torch.float32, device=device)
-            # original targets
+            # the original targets
             s['targets_original'] = torch.tensor(s['targs'], dtype=torch.float32, device=device)
-            # normalize targets
+            # normalizing the targets
             t = (s['targs'] - self.targ_mean) / self.targ_std
             s['targets'] = torch.tensor(t, dtype=torch.float32, device=device)
             # mask
             s['mask'] = torch.tensor(s['mask'], dtype=torch.bool, device=device)
-            # adjacency
+            # adjacency matrix
             src = s['edges']['source'].values.astype(np.int64)
             tgt = s['edges']['target'].values.astype(np.int64)
             idx = torch.tensor(np.vstack([src, tgt]), dtype=torch.long, device=device)
@@ -108,9 +104,7 @@ class SceneDataset(Dataset):
 def collate_fn(batch):
     return batch[0]
 
-# ------------------------
-# Graph Attention Layer
-# ------------------------
+# graph attention layer
 class GraphAttention(nn.Module):
     def __init__(self, in_dim, out_dim):
         super().__init__()
@@ -129,9 +123,7 @@ class GraphAttention(nn.Module):
         alpha = F.softmax(e, dim=1)
         return torch.matmul(alpha, Wh)
 
-# ------------------------
-# GAT Regression Model
-# ------------------------
+# gat regression model
 class GATRegressor(nn.Module):
     def __init__(self, in_dim, hidden_dim=64, out_dim=2):
         super().__init__()
@@ -144,9 +136,7 @@ class GATRegressor(nn.Module):
         x = self.dropout(x)
         return self.gat2(x, adj)
 
-# ------------------------
-# Training & Evaluation
-# ------------------------
+# training & evaluation
 def train_epoch(model, loader, optimizer, criterion):
     model.train()
     total_loss = 0.0
@@ -183,9 +173,7 @@ def evaluate(model, loader, targ_mean, targ_std):
     within_1m_mm = np.mean(errs < 1000.0)   # ← 1000 mm
     return mae, rmse, pct50, pct90, within_1m_mm
 
-# ------------------------
-# Main
-# ------------------------
+# main
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_path', type=str, default='dataset')
